@@ -1,0 +1,10 @@
+{
+  "name": "laifen-calendar-worker",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-06-09",
+  "vars": {
+    "FEISHU_APP_ID": "cli_aaad3bb745799bd8",
+    "BITABLE_APP_TOKEN": "RgFqbx0bxa0l1DsQyOccbe7mn7g",
+    "TABLE_ID": "tbleaarDLgkbDhcH"
+  }
+}
