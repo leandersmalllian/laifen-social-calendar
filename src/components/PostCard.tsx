@@ -15,7 +15,7 @@ interface PostCardProps {
 }
 
 function isLikelyImageUrl(value: string): boolean {
-  return /^https?:\/\/.+\.(png|jpe?g|webp|gif|avif)(\?.*)?$/i.test(value);
+  return /^(https?:|\/\/|data:image\/)/.test(value);
 }
 
 export function PostCard({ post, onEdit }: PostCardProps) {

@@ -147,6 +147,37 @@ function App() {
     setEditorState(null);
   };
 
+  const handleDropImage = (date: string, region: Region, imageDataUrl: string) => {
+    const existingPosts = posts.filter(
+      (p) => p.date === date && p.region === region,
+    );
+
+    if (existingPosts.length > 0) {
+      // Add image to first existing post
+      const post = { ...existingPosts[0], asset: imageDataUrl };
+      setPosts((current) =>
+        sortPosts(current.map((p) => (p.id === post.id ? post : p))),
+      );
+    } else {
+      // Create new post with image
+      const newPost: SocialPost = {
+        id: createPostId(),
+        date,
+        dayOfWeek: toDisplayDay(date),
+        region,
+        pillar: "",
+        focus: "",
+        asset: imageDataUrl,
+        postCopy: "",
+        hashtags: "",
+        contentType: "",
+        notes: "",
+      };
+      setPosts((current) => sortPosts([...current, newPost]));
+    }
+    setSelectedDate(date);
+  };
+
   const deletePost = (postId: string) => {
     setPosts((currentPosts) =>
       currentPosts.filter((post) => post.id !== postId),
@@ -239,6 +270,7 @@ function App() {
                 onAddPost={openNewPost}
                 onEditPost={openExistingPost}
                 onSelectDate={setSelectedDate}
+                onDropImage={handleDropImage}
               />
               <CalendarMonth
                 month={selectedMonth}
@@ -248,6 +280,7 @@ function App() {
                 onAddPost={openNewPost}
                 onEditPost={openExistingPost}
                 onSelectDate={setSelectedDate}
+                onDropImage={handleDropImage}
               />
             </div>
           </div>
