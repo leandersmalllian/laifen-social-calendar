@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8787";
+const API_BASE = import.meta.env.VITE_API_URL || "https://laifen-calendar-worker.leanderlaifen.workers.dev";
 const BITABLE_TOKEN = "RgFqbx0bxa0l1DsQyOccbe7mn7g";
 const BITABLE_URL = `https://f1l5e2ythy.feishu.cn/base/${BITABLE_TOKEN}`;
 export { BITABLE_URL };
