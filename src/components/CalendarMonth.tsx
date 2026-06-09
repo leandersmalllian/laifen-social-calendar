@@ -22,7 +22,7 @@ interface CalendarMonthProps {
   onAddPost: (date: string, region: Region) => void;
   onEditPost: (post: SocialPost) => void;
   onSelectDate: (date: string) => void;
-  onDropImage: (date: string, region: Region, imageDataUrl: string) => void;
+  onDropImage: (date: string, region: Region, file: File) => void;
 }
 
 function Thumbnail({ asset }: { asset: string }) {
@@ -157,7 +157,7 @@ function DropCell({
   onSelectDate: (d: string) => void;
   onAddPost: (d: string, r: Region) => void;
   onEditPost: (p: SocialPost) => void;
-  onDropImage: (d: string, r: Region, img: string) => void;
+  onDropImage: (d: string, r: Region, file: File) => void;
 }) {
   const [dragOver, setDragOver] = useState(false);
 
@@ -182,11 +182,7 @@ function DropCell({
       const file = e.dataTransfer.files[0];
       if (!file || !file.type.startsWith("image/")) return;
 
-      const reader = new FileReader();
-      reader.onload = () => {
-        onDropImage(date, region, reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      onDropImage(date, region, file);
     },
     [date, region, onDropImage]
   );

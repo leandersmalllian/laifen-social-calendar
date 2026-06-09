@@ -15,6 +15,7 @@ interface PostCardProps {
 }
 
 function isLikelyImageUrl(value: string): boolean {
+  if (value === "uploading…") return false;
   return /^(https?:|\/\/|data:image\/)/.test(value);
 }
 

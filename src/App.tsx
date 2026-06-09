@@ -1,4 +1,4 @@
-import { CalendarDays, Plus, RotateCcw } from "lucide-react";
+import { CalendarDays, Key, Plus, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CalendarMonth } from "./components/CalendarMonth";
 import { ExportButton } from "./components/ExportButton";
@@ -10,6 +10,7 @@ import { SyncButton } from "./components/SyncButton";
 import { createInitialMonthData } from "./data/sheetsLoader";
 import type { MonthData, PostDraft, Region, SocialPost } from "./types";
 import { firstDateOfMonth, monthName, toDisplayDay, YEAR } from "./utils/date";
+import { uploadToDrive } from "./utils/feishuDrive";
 
 const STORAGE_KEY = "laifen-social-calendar-2026:v1";
 const INITIAL_MONTH_DATA = createInitialMonthData();
@@ -88,6 +89,10 @@ function App() {
     sortPosts(loadStoredPosts()),
   );
   const [editorState, setEditorState] = useState<EditorState | null>(null);
+  const [showTokenInput, setShowTokenInput] = useState(false);
+  const [tokenInput, setTokenInput] = useState(
+    () => localStorage.getItem("feishu_token") || ""
+  );
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(posts));
@@ -147,27 +152,28 @@ function App() {
     setEditorState(null);
   };
 
-  const handleDropImage = (date: string, region: Region, imageDataUrl: string) => {
+  const handleDropImage = async (date: string, region: Region, file: File) => {
     const existingPosts = posts.filter(
       (p) => p.date === date && p.region === region,
     );
 
+    // 显示上传中状态
+    const tempId = createPostId();
+
     if (existingPosts.length > 0) {
-      // Add image to first existing post
-      const post = { ...existingPosts[0], asset: imageDataUrl };
+      const post = { ...existingPosts[0], asset: "uploading…" };
       setPosts((current) =>
         sortPosts(current.map((p) => (p.id === post.id ? post : p))),
       );
     } else {
-      // Create new post with image
       const newPost: SocialPost = {
-        id: createPostId(),
+        id: tempId,
         date,
         dayOfWeek: toDisplayDay(date),
         region,
         pillar: "",
         focus: "",
-        asset: imageDataUrl,
+        asset: "uploading…",
         postCopy: "",
         hashtags: "",
         contentType: "",
@@ -176,6 +182,39 @@ function App() {
       setPosts((current) => sortPosts([...current, newPost]));
     }
     setSelectedDate(date);
+
+    // 上传到飞书 Drive
+    try {
+      const result = await uploadToDrive(file);
+
+      setPosts((current) =>
+        sortPosts(
+          current.map((p) => {
+            const matches =
+              p.date === date && p.region === region &&
+              (existingPosts.length > 0 ? p.id === existingPosts[0].id : p.id === tempId);
+            return matches ? { ...p, asset: result.url } : p;
+          }),
+        ),
+      );
+    } catch (err) {
+      console.error("Feishu Drive upload failed, falling back to data URL:", err);
+      // 失败则回退到 base64
+      const reader = new FileReader();
+      reader.onload = () => {
+        setPosts((current) =>
+          sortPosts(
+            current.map((p) => {
+              const matches =
+                p.date === date && p.region === region &&
+                (existingPosts.length > 0 ? p.id === existingPosts[0].id : p.id === tempId);
+              return matches ? { ...p, asset: reader.result as string } : p;
+            }),
+          ),
+        );
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const deletePost = (postId: string) => {
@@ -189,6 +228,11 @@ function App() {
     setPosts(sortPosts(INITIAL_POSTS));
     setSelectedMonth(1);
     setSelectedDate(firstDateOfMonth(1));
+  };
+
+  const saveToken = () => {
+    localStorage.setItem("feishu_token", tokenInput.trim());
+    setShowTokenInput(false);
   };
 
   return (
@@ -211,6 +255,14 @@ function App() {
 
           <div className="flex flex-wrap items-center gap-2">
             <button
+              className="inline-flex items-center justify-center gap-1 rounded-[8px] border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-laifen-graphite transition hover:border-laifen-cyan hover:text-laifen-ink"
+              type="button"
+              onClick={() => setShowTokenInput(!showTokenInput)}
+            >
+              <Key size={14} />
+              {tokenInput ? "Token ✓" : "Set Token"}
+            </button>
+            <button
               className="inline-flex items-center justify-center gap-2 rounded-[8px] border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-laifen-graphite transition hover:border-laifen-cyan hover:text-laifen-ink"
               type="button"
               onClick={resetToSeed}
@@ -222,6 +274,34 @@ function App() {
             <ExportButton month={selectedMonth} targetRef={exportRef} />
           </div>
         </header>
+
+        {showTokenInput && (
+          <div className="rounded-[8px] border border-laifen-cyan/40 bg-white/90 p-4 shadow-sm backdrop-blur">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <label className="text-sm font-semibold text-laifen-graphite whitespace-nowrap">
+                飞书 Tenant Token:
+              </label>
+              <input
+                className="flex-1 rounded-[6px] border border-zinc-300 bg-white px-3 py-2 text-sm text-laifen-ink placeholder:text-zinc-400 focus:border-laifen-cyan focus:outline-none"
+                placeholder="t-g1..."
+                type="password"
+                value={tokenInput}
+                onChange={(e) => setTokenInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") saveToken(); }}
+              />
+              <button
+                className="inline-flex items-center justify-center gap-2 rounded-[6px] bg-laifen-ink px-4 py-2 text-sm font-semibold text-white transition hover:bg-laifen-graphite"
+                type="button"
+                onClick={saveToken}
+              >
+                保存
+              </button>
+            </div>
+            <p className="mt-1.5 text-xs text-zinc-400">
+              从飞书开放平台获取，用于上传图片到飞书 Drive
+            </p>
+          </div>
+        )}
 
         <MonthSelector
           selectedMonth={selectedMonth}
