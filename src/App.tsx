@@ -224,6 +224,18 @@ function App() {
     setEditorState(null);
   };
 
+  const handleMovePost = (postId: string, newDate: string, region: Region) => {
+    setPosts((currentPosts) =>
+      sortPosts(
+        currentPosts.map((post) =>
+          post.id === postId ? { ...post, date: newDate, dayOfWeek: toDisplayDay(newDate) } : post
+        ),
+      ),
+    );
+    setSelectedDate(newDate);
+    setSelectedMonth(monthFromDate(newDate));
+  };
+
   const resetToSeed = () => {
     setPosts(sortPosts(INITIAL_POSTS));
     setSelectedMonth(1);
@@ -351,6 +363,7 @@ function App() {
                 onEditPost={openExistingPost}
                 onSelectDate={setSelectedDate}
                 onDropImage={handleDropImage}
+                onMovePost={handleMovePost}
               />
               <CalendarMonth
                 month={selectedMonth}
@@ -361,6 +374,7 @@ function App() {
                 onEditPost={openExistingPost}
                 onSelectDate={setSelectedDate}
                 onDropImage={handleDropImage}
+                onMovePost={handleMovePost}
               />
             </div>
           </div>

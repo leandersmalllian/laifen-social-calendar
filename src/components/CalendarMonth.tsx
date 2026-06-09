@@ -1,5 +1,5 @@
-import { Edit3, Image as ImageIcon, Plus } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { Edit3, GripHorizontal, Image as ImageIcon, Plus } from "lucide-react";
+import { useCallback, useState } from "react";
 import type { Region, SocialPost } from "../types";
 import { getCalendarGrid, monthName, WEEKDAYS } from "../utils/date";
 import { getHolidaysForDate } from "../data/holidays";
@@ -23,19 +23,28 @@ interface CalendarMonthProps {
   onEditPost: (post: SocialPost) => void;
   onSelectDate: (date: string) => void;
   onDropImage: (date: string, region: Region, file: File) => void;
+  onMovePost: (postId: string, newDate: string, region: Region) => void;
 }
 
-function Thumbnail({ asset }: { asset: string }) {
+function Thumbnail({ asset, onDragStart }: { asset: string; onDragStart?: (e: React.DragEvent) => void }) {
   const isUrl = asset.startsWith("http") || asset.startsWith("data:");
   if (!isUrl) return null;
   return (
-    <div className="mt-1 h-14 w-full overflow-hidden rounded-[4px] border border-zinc-200 bg-zinc-100">
+    <div
+      className="mt-1 h-14 w-full overflow-hidden rounded-[4px] border border-zinc-200 bg-zinc-100 cursor-grab active:cursor-grabbing group/img"
+      draggable
+      onDragStart={onDragStart}
+    >
       <img
         src={asset}
         alt=""
         className="h-full w-full object-cover"
         onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
       />
+      {/* drag handle hint */}
+      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition">
+        <GripHorizontal size={14} className="text-white drop-shadow-md" />
+      </div>
     </div>
   );
 }
@@ -49,6 +58,7 @@ export function CalendarMonth({
   onEditPost,
   onSelectDate,
   onDropImage,
+  onMovePost,
 }: CalendarMonthProps) {
   const grid = getCalendarGrid(month);
   const postsByDate = posts
@@ -115,10 +125,12 @@ export function CalendarMonth({
               holidays={holidays}
               dayPosts={dayPosts}
               firstAsset={firstPostWithAsset?.asset}
+              firstPostId={firstPostWithAsset?.id}
               onSelectDate={onSelectDate}
               onAddPost={onAddPost}
               onEditPost={onEditPost}
               onDropImage={onDropImage}
+              onMovePost={onMovePost}
             />
           );
         })}
@@ -139,10 +151,12 @@ function DropCell({
   holidays,
   dayPosts,
   firstAsset,
+  firstPostId,
   onSelectDate,
   onAddPost,
   onEditPost,
   onDropImage,
+  onMovePost,
 }: {
   date: string;
   region: Region;
@@ -154,10 +168,12 @@ function DropCell({
   holidays: ReturnType<typeof getHolidaysForDate>;
   dayPosts: SocialPost[];
   firstAsset?: string;
+  firstPostId?: string;
   onSelectDate: (d: string) => void;
   onAddPost: (d: string, r: Region) => void;
   onEditPost: (p: SocialPost) => void;
   onDropImage: (d: string, r: Region, file: File) => void;
+  onMovePost: (postId: string, newDate: string, region: Region) => void;
 }) {
   const [dragOver, setDragOver] = useState(false);
 
@@ -179,12 +195,36 @@ function DropCell({
       e.stopPropagation();
       setDragOver(false);
 
+      // Check if this is a post move (internal drag)
+      const postData = e.dataTransfer.getData("application/laifen-post");
+      if (postData) {
+        try {
+          const { postId, fromDate } = JSON.parse(postData);
+          if (fromDate !== date) {
+            onMovePost(postId, date, region);
+          }
+        } catch { /* ignore parse errors */ }
+        return;
+      }
+
+      // External file drop
       const file = e.dataTransfer.files[0];
       if (!file || !file.type.startsWith("image/")) return;
-
       onDropImage(date, region, file);
     },
-    [date, region, onDropImage]
+    [date, region, onDropImage, onMovePost]
+  );
+
+  const handleThumbDragStart = useCallback(
+    (e: React.DragEvent) => {
+      if (!firstPostId) return;
+      e.dataTransfer.setData(
+        "application/laifen-post",
+        JSON.stringify({ postId: firstPostId, fromDate: date })
+      );
+      e.dataTransfer.effectAllowed = "move";
+    },
+    [firstPostId, date]
   );
 
   return (
@@ -208,7 +248,7 @@ function DropCell({
       {dragOver && (
         <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center rounded-[6px] bg-laifen-cyan/20">
           <ImageIcon size={20} className="text-laifen-cyan" />
-          <span className="mt-1 text-[0.62rem] font-bold text-laifen-cyan">Drop image</span>
+          <span className="mt-1 text-[0.62rem] font-bold text-laifen-cyan">Drop here</span>
         </div>
       )}
 
@@ -249,8 +289,8 @@ function DropCell({
         </div>
       )}
 
-      {/* Thumbnail */}
-      {firstAsset && <Thumbnail asset={firstAsset} />}
+      {/* Draggable thumbnail */}
+      {firstAsset && <Thumbnail asset={firstAsset} onDragStart={handleThumbDragStart} />}
 
       {/* Post list */}
       <div className="mt-1 grid gap-0.5">
