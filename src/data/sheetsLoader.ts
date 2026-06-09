@@ -1,7 +1,7 @@
 import type { MonthData, Region, SocialPost } from "../types";
 import { MONTHS, YEAR, toDisplayDay } from "../utils/date";
 import { getHolidaysForMonth } from "./holidays";
-import januarySeedCsv from "./social_calendar_jan.csv?raw";
+import fullCalendarCsv from "./social_calendar_full.csv?raw";
 
 const MONTH_INDEX: Record<string, number> = {
   jan: 1,
@@ -209,7 +209,7 @@ export function parseSocialCalendarCsv(csv: string): MonthData[] {
 }
 
 export function createInitialMonthData(): MonthData[] {
-  return parseSocialCalendarCsv(januarySeedCsv);
+  return parseSocialCalendarCsv(fullCalendarCsv);
 }
 
 export function getMonthHighlights(
